@@ -4,7 +4,9 @@ This is a stand-alone utility to enhance how you use [TaskWarrior](https://taskw
 
 ## Install Instructions
 Clone to your preferred spot.
+
 Create a symlink to the python file: `sudo ln -s <path to tasknotes.py> /usr/local/bin/tasknotes`
+
 ...or use whatever your preferred method is.
 
 ## Configuration
