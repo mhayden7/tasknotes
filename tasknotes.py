@@ -7,7 +7,7 @@ import subprocess
 
 argparser = argparse.ArgumentParser(prog='tasknotes')
 arggroup = argparser.add_mutually_exclusive_group(required=True)
-arggroup.add_argument('-s', '--sync', action='store_true', help="Creates folders for projects and text files for tasks.")
+# arggroup.add_argument('-s', '--sync', action='store_true', help="Creates folders for projects and text files for tasks.")
 arggroup.add_argument('-t', '--task', type=str, help="Open notes for the task for editing.")
 args = argparser.parse_args()
 
@@ -31,8 +31,7 @@ def parse_task(task_id):
     return task_dict
 
 
-def sync():
-    # sync project folders
+def create_project_folders():
     task_list = subprocess.run('task ls', shell=True, capture_output=True, text=True).stdout.split('\n')
     id_field_width = len(task_list[2].split(' ')[0])
     project_field_width = len(task_list[2].split(' ')[1])
@@ -45,18 +44,25 @@ def sync():
             project = task[id_field_width+1:project_field_width+id_field_width+1].strip()
             subprocess.run('mkdir -p ' + task_notes_parent_directory + project.replace('.', '/'), shell=True)
 
-            id = task[:id_field_width].strip()
-            uuid = subprocess.run('task ' + id + ' uuids', shell=True, capture_output=True, text=True).stdout.strip()
-            task_file = task_notes_parent_directory + project.replace('.','/') + '/' + uuid + '.txt'
-            # turns out that python doesn't handle things like ~ for home directory, so also using bash to test if file exists
-            if subprocess.run('if [ -f ' + task_file + ' ]; then echo "True"; else echo "False"; fi', shell=True, capture_output=True, text=True).stdout.strip() == "False":
-                subprocess.run('task ' + id + ' > ' + task_file, shell=True)
 
 def edit(task_id):
+    create_project_folders()
     task_data = parse_task(task_id)
+    expected_task_file = f"{task_notes_parent_directory}{task_data['Project'].replace('.','/')}/{task_data['UUID']}.txt"
+
+    # check notes directory tree for existing task file
+    existing_task_file = subprocess.run(f"find {task_notes_parent_directory} -name {task_data['UUID']}*", shell=True, capture_output=True, text=True).stdout.strip()
+    if existing_task_file == '':
+        subprocess.run('task ' + task_id + ' > ' + expected_task_file, shell=True)
+        existing_task_file = expected_task_file
+
+    # migrate task file
+    if existing_task_file != expected_task_file:
+        subprocess.run(f"mv {existing_task_file} {expected_task_file}", shell=True)
+    
+    # open task file
     subprocess.run(editor + ' ' + task_notes_parent_directory + task_data['Project'].replace('.','/') + '/' + task_data['UUID'] + '.txt', shell=True)
 
-if args.sync:
-    sync()
-elif args.task:
+
+if args.task:
     edit(args.task)
